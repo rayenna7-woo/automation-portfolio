@@ -44,7 +44,13 @@ def inspect_request(
 
 def _parse_body(response: requests.Response) -> dict | list | str:
     """Return parsed JSON for JSON responses, else the first 500 chars of text."""
-    return response.json()
+    content_type = response.headers.get("Content-Type", "")
+    if "json" in content_type.lower():
+        try:
+            return response.json()
+        except ValueError:
+            pass  # Server said JSON but sent something else: fall back to text.
+    return response.text[:BODY_PREVIEW_CHARS]
 
 
 def run_demo(title: str, method: str, url: str, **kwargs) -> dict | None:
