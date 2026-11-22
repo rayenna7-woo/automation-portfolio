@@ -71,3 +71,42 @@ Run the tests (no network needed):
 ```powershell
 python -m pytest -v
 ```
+
+## Day 3: nested JSON, mapping to my own schema, CSV and SQLite
+
+`day03_json/` is a small ETL pipeline: fetch users from JSONPlaceholder, map
+each one to my own "contact" schema, save the result to CSV and SQLite.
+
+- `extract.py`: `fetch_users(url, timeout)` GETs the users, calls
+  `raise_for_status()` and raises `ValueError` if the JSON is not a list.
+- `transform.py` (pure functions, no network or files):
+  - `get_nested(data, "address.geo.lat", default)` walks nested dicts and
+    returns `default` if a level is missing or is not a dict. It never raises.
+  - `to_float(value)` gives a float or `None` (`"abc"`, `""`, `None`).
+  - `map_user(raw)` returns exactly the keys `id, full_name, email, phone,
+    city, company, website, lat, lng`. The email is stripped and lowercased.
+    A missing id or a missing/invalid email raises `ValueError`.
+  - `map_users(raws)` returns `(good_rows, errors)`. One bad record becomes
+    `{"index", "raw_id", "reason"}` and the others are still mapped.
+- `load.py`:
+  - `write_csv(rows, path)` writes UTF-8 with a BOM (`utf-8-sig`) so Excel
+    shows Arabic names correctly.
+  - `save_sqlite(rows, db_path)` upserts with `ON CONFLICT(id) DO UPDATE`, so
+    re-running updates existing rows instead of duplicating them. Values are
+    always passed as SQL parameters, never put into the SQL string.
+- `pipeline.py`: extract -> transform -> load, then prints the counts.
+
+Output goes to `data/contacts.csv` and `data/contacts.db`. `data/` is in
+`.gitignore` because these files are generated.
+
+Run the pipeline (run it twice: the DB still has 10 rows):
+
+```powershell
+python -m day03_json.pipeline
+```
+
+Run the tests (no network needed):
+
+```powershell
+python -m pytest -v
+```
